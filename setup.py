@@ -3,14 +3,14 @@ import setuptools
 
 ########################################################################################################################
 
-plugin_identifier = "psucontrol_tplink"
+plugin_identifier = "psucontrol_tapo"
 plugin_package = "octoprint_%s" % plugin_identifier
-plugin_name = "OctoPrint-PSUControl-TPLink"
-plugin_version = "1.0.1"
-plugin_description = "Adds TPLink Smart Plug support to OctoPrint-PSUControl as a sub-plugin"
-plugin_author = "Shawn Bruce"
-plugin_author_email = "kantlivelong@gmail.com"
-plugin_url = "https://github.com/kantlivelong/OctoPrint-PSUControl-TPLink"
+plugin_name = "OctoPrint-PSUControl-Tapo"
+plugin_version = "0.1.0"
+plugin_description = "Adds Tapo Smart Plug support to OctoPrint-PSUControl as a sub-plugin"
+plugin_author = "Dennis Schwerdel"
+plugin_author_email = "schwerdel@gmail.com"
+plugin_url = "https://github.com/dswd/OctoPrint-PSUControl-Tapo"
 plugin_license = "AGPLv3"
 plugin_additional_data = []
 

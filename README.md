@@ -1,5 +1,5 @@
-# OctoPrint PSU Control - TPLink
-Adds TPLink Smart Plug support to OctoPrint-PSUControl as a sub-plugin
+# OctoPrint PSU Control - Tapo
+Adds Tapo Smart Plug support to OctoPrint-PSUControl as a sub-plugin
 
 ## Setup
 - Install the plugin using Plugin Manager from Settings

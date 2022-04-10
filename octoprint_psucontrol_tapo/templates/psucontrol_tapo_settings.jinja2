@@ -7,15 +7,19 @@
     <div class="control-group">
         <label class="control-label">Address</label>
         <div class="controls">
-            <input type="text" class="input" data-bind="value: settings.plugins.psucontrol_tplink.address" placeholder="127.0.0.1">
+            <input type="text" class="input" data-bind="value: settings.plugins.psucontrol_tapo.address" placeholder="p100">
         </div>
     </div>
     <div class="control-group">
-        <label class="control-label">Plug</label>
+        <label class="control-label">Username</label>
         <div class="controls">
-            <input type="number" min="0" class="input-mini" data-bind="value: settings.plugins.psucontrol_tplink.plug">
-            <br/>
-            <span class="help-inline">For single plug devices leave zero</span>
+            <input type="text" class="input" data-bind="value: settings.plugins.psucontrol_tapo.username" placeholder="">
+        </div>
+    </div>
+    <div class="control-group">
+        <label class="control-label">Password</label>
+        <div class="controls">
+            <input type="password" class="input" data-bind="value: settings.plugins.psucontrol_tapo.password" placeholder="">
         </div>
     </div>
 </form>
