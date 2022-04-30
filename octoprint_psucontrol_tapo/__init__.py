@@ -7,6 +7,7 @@ __copyright__ = "Copyright (C) 2022 Dennis Schwerdel - Released under terms of t
 
 import octoprint.plugin
 from .tapo import P100
+from . import tapo
 
 class PSUControl_Tapo(octoprint.plugin.StartupPlugin,
                       octoprint.plugin.RestartNeedingPlugin,
@@ -58,6 +59,7 @@ class PSUControl_Tapo(octoprint.plugin.StartupPlugin,
             self._logger.debug("{}: {}".format(k, v))
         try:
             self._logger.info(f"Config: {self.config}")
+            tapo.log = self._logger
             self.device = P100(self.config["address"], self.config["username"], self.config["password"])
         except:
             self._logger.exception(f"Failed to connect to Tapo device")
