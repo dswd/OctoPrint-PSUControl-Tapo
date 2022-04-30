@@ -1,4 +1,5 @@
 import json, time, uuid, logging
+import os.path
 from base64 import b64encode, b64decode
 import requests
 from Crypto.PublicKey import RSA
@@ -8,24 +9,33 @@ import hashlib
 log = logging.getLogger(__name__)
 
 
+# API: https://k4czp3r.xyz/reverse-engineering/tp-link/tapo/2020/10/15/reverse-engineering-tp-link-tapo.html
+
 class Device:
-    def __init__(self, address: str, username: str, password: str, keypair=None):
+    def __init__(self, address: str, username: str, password: str, keypair_file: str = '/tmp/tapo.key'):
         self.session = requests.Session() # single session, stores cookie
         self.terminal_uuid = str(uuid.uuid4())
         self.address = address
         self.username = username
         self.password = password
-        self.keypair = keypair or RSA.generate(1024)
+        self.keypair_file = keypair_file
+        self._create_keypair()
         self.key = None
         self.iv = None
-        self.initializing = False
 
 
-    def _request(self, method: str, params: dict = None):
-        # Initialize if not done yet
-        if not self.initializing and (not self.key or not self.token):
-            self._initialize()
+    def _create_keypair(self):
+        if self.keypair_file and os.path.exists(self.keypair_file):
+            with open(self.keypair_file, 'r') as f:
+                self.keypair = RSA.importKey(f.read())
+        else:
+            self.keypair = RSA.generate(1024)
+            if self.keypair_file:
+                with open(self.keypair_file, "wb") as f:
+                    f.write(self.keypair.exportKey("PEM"))
 
+
+    def _request_raw(self, method: str, params: dict = None):
         # Construct url, add token if we have one
         url = f"http://{self.address}/app"
         if self.token:
@@ -39,17 +49,7 @@ class Device:
         }
         if params:
             payload["params"] = params
-        log.info("REQUEST:", payload)
-
-        # If we have a key, encrypt payload and wrap in securePassthrough request
-        if self.key:
-            encrypted = self._encrypt(json.dumps(payload))
-            payload = {
-                "method": "securePassthrough",
-                "params": {
-                    "request": encrypted
-                }
-            }
+        log.debug(f"Request raw: {payload}")
 
         # Execute call
         resp = self.session.post(url, json=payload, timeout=2)
@@ -58,17 +58,43 @@ class Device:
 
         # Check error code and get result
         if data["error_code"] != 0:
+            log.error(f"Error: {data}")
+            self.key = None
             raise Exception(f"Error code: {data['error_code']}")
         result = data.get("result")
 
-        # If we used securePassthrough, unwrap and decrypt result
-        if self.key:
-            data = json.loads(self._decrypt(result["response"]))
-            if data["error_code"] != 0:
-                raise Exception(f"Error code: {data['error_code']}")
-            result = data.get("result")
+        log.debug(f"Response raw: {result}")
+        return result
 
-        log.info("RESPONSE:", repr(result))
+
+    def _request(self, method: str, params: dict = None):
+        if not self.key:
+            self._initialize()
+
+        # Construct payload, add params if given
+        payload = {
+            "method": method,
+            "requestTimeMils": int(round(time.time() * 1000)),
+            "terminalUUID": self.terminal_uuid
+        }
+        if params:
+            payload["params"] = params
+        log.debug(f"Request: {payload}")
+
+        # Encrypt payload and execute call
+        encrypted = self._encrypt(json.dumps(payload))
+
+        result = self._request_raw("securePassthrough", {"request": encrypted}) 
+
+        # Unwrap and decrypt result
+        data = json.loads(self._decrypt(result["response"]))
+        if data["error_code"] != 0:
+            log.error(f"Error: {data}")
+            self.key = None
+            raise Exception(f"Error code: {data['error_code']}")
+        result = data.get("result")
+
+        log.debug(f"Response: {result}")
         return result
 
 
@@ -105,11 +131,12 @@ class Device:
         # Unset key and token
         self.key = None
         self.token = None
-        self.initializing = True
 
         # Send public key and receive encrypted symmetric key
-        result = self._request("handshake", {
-            "key": self.keypair.publickey().exportKey("PEM").decode("UTF-8")
+        public_key = self.keypair.publickey().exportKey("PEM").decode("UTF-8")
+        public_key = public_key.replace("RSA PUBLIC KEY", "PUBLIC KEY")
+        result = self._request_raw("handshake", {
+            "key": public_key
         })
         encrypted = b64decode(result["key"].encode("UTF-8"))
         
@@ -129,20 +156,66 @@ class Device:
             "password": password
         })
         self.token = result["token"]
-        self.initializing = False
 
 
     def _get_device_info(self):
         return self._request("get_device_info")
 
-
     def _set_device_info(self, params: dict):
         return self._request("set_device_info", params)        
 
+    def get_type(self) -> str:
+        return self._get_device_info()["model"]
 
-class P100(Device):
+    def get_model(self) -> str:
+        return self._get_device_info()["type"]
+
+
+class Switchable(Device):
     def get_status(self) -> bool:
         return self._get_device_info()["device_on"]
 
+    def get_on_time(self) -> int:
+        return self._get_device_info()["on_time"]
+
     def set_status(self, status: bool):
         return self._set_device_info({"device_on": status})
+
+    def turn_on(self):
+        return self.set_status(True)
+
+    def turn_off(self):
+        return self.set_status(False)
+
+    def toggle(self):
+        return self.set_status(not self.get_status())
+
+
+class Metering(Device):
+    def get_energy_usage(self) -> dict:
+        return self._request("get_energy_usage")
+
+
+class Dimmable(Device):
+    # Set brightness level (0-100)
+    def set_brightness(self, brightness: int):
+        return self._set_device_info({"brightness": brightness})
+
+class ColorTemp(Device):
+    # Set color temperature in Kelvin
+    def set_color_temp(self, color_temp: int):
+        return self._set_device_info({"color_temp": color_temp})
+
+class ColorRGB(Device):
+    def set_color_rgb(self, hue, saturation):
+        return self._set_device_info({"color_temp": 0, "hue": hue, "saturation": saturation})
+
+
+
+class P100(Switchable): pass
+class P110(Switchable, Metering): pass
+class L520(Switchable, Dimmable): pass
+class L510(Switchable, Dimmable, ColorTemp): pass
+class L530(Switchable, Dimmable, ColorTemp, ColorRGB): pass
+class L900(Switchable, Dimmable, ColorTemp, ColorRGB): pass
+class L920(Switchable, Dimmable, ColorTemp, ColorRGB): pass
