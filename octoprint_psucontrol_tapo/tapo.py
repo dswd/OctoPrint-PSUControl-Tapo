@@ -52,7 +52,7 @@ class Device:
         log.debug(f"Request raw: {payload}")
 
         # Execute call
-        resp = self.session.post(url, json=payload, timeout=0.5)
+        resp = self.session.post(url, json=payload, timeout=2)
         resp.raise_for_status()
         data = resp.json()
 
