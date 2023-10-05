@@ -1,5 +1,6 @@
 # coding=utf-8
 from __future__ import absolute_import
+import threading
 
 __author__ = "Dennis Schwerdel <schwerdel@gmail.com>"
 __license__ = "GNU Affero General Public License http://www.gnu.org/licenses/agpl.html"
@@ -17,6 +18,7 @@ class PSUControl_Tapo(octoprint.plugin.StartupPlugin,
     def __init__(self):
         self.config = dict()
         self.device = None
+        self.last_status = None
 
 
     def get_settings_defaults(self):
@@ -44,6 +46,10 @@ class PSUControl_Tapo(octoprint.plugin.StartupPlugin,
         pass
 
 
+    def _reconnect(self):
+        self._logger.info(f"Connecting to Tapo device at {self.config['address']}")
+        self.device = P100(self.config["address"], self.config["username"], self.config["password"])
+
     def reload_settings(self):
         for k, v in self.get_settings_defaults().items():
             if type(v) == str:
@@ -60,7 +66,7 @@ class PSUControl_Tapo(octoprint.plugin.StartupPlugin,
         try:
             self._logger.info(f"Config: {self.config}")
             tapo.log = self._logger
-            self.device = P100(self.config["address"], self.config["username"], self.config["password"])
+            self._reconnect()
         except:
             self._logger.exception(f"Failed to connect to Tapo device")
 
@@ -76,19 +82,47 @@ class PSUControl_Tapo(octoprint.plugin.StartupPlugin,
 
 
     def turn_psu_on(self):
+        if not self.device:
+            self._reconnect()
         self._logger.debug("Switching PSU On")
-        self.device.set_status(True)
-
+        try:
+            self.device.set_status(True)
+            self.last_status = True
+        except:
+            self._logger.exception(f"Failed to switch PSU On")
+            self.device = None
+            raise
 
     def turn_psu_off(self):
+        if not self.device:
+            self._reconnect()
         self._logger.debug("Switching PSU Off")
-        self.device.set_status(False)
+        try:
+            self.device.set_status(False)
+            self.last_status = False
+        except:
+            self._logger.exception(f"Failed to switch PSU Off")
+            self.device = None
+            raise
 
+
+    def _fetch_psu_state(self):
+        if not self.device:
+            self._reconnect()
+        self._logger.debug("get_psu_state")
+        try:
+            self.last_status = self.device.get_status()
+        except:
+            self._logger.exception(f"Failed to get PSU state")
+            self.device = None
+            raise
 
     def get_psu_state(self):
-        self._logger.debug("get_psu_state")
-        return self.device.get_status()
-
+        if not self.last_status:
+            self._fetch_psu_state()
+        else:
+            threading.Thread(target=self._fetch_psu_state).start()
+        return self.last_status
 
     def get_template_configs(self):
         return [

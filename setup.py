@@ -6,7 +6,7 @@ import setuptools
 plugin_identifier = "psucontrol_tapo"
 plugin_package = "octoprint_%s" % plugin_identifier
 plugin_name = "OctoPrint-PSUControl-Tapo"
-plugin_version = "0.3.0"
+plugin_version = "0.4.0"
 plugin_description = "Adds Tapo Smart Plug support to OctoPrint-PSUControl as a sub-plugin"
 plugin_author = "Dennis Schwerdel"
 plugin_author_email = "schwerdel@gmail.com"
