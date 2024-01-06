@@ -9,6 +9,7 @@ __copyright__ = "Copyright (C) 2022 Dennis Schwerdel - Released under terms of t
 import octoprint.plugin
 from .tapo import P100
 from . import tapo
+import os
 
 class PSUControl_Tapo(octoprint.plugin.StartupPlugin,
                       octoprint.plugin.RestartNeedingPlugin,
@@ -25,7 +26,9 @@ class PSUControl_Tapo(octoprint.plugin.StartupPlugin,
         return dict(
             address = '',
             username = '',
-            password = ''
+            password = '',
+            power_off_delay = 0,
+            shutdown_on_power_off = False
         )
 
 
@@ -93,12 +96,25 @@ class PSUControl_Tapo(octoprint.plugin.StartupPlugin,
             self.device = None
             raise
 
+
+    def _shutdown(self):
+         if os.name == 'posix':
+             os.system('sudo shutdown now')
+         else:
+             os.system('shutdown -s -t 0')
+
+
     def turn_psu_off(self):
         if not self.device:
             self._reconnect()
         self._logger.debug("Switching PSU Off")
         try:
-            self.device.set_status(False)
+            if self.config["power_off_delay"] > 0:
+                self.device.turn_off_delayed(self.config["power_off_delay"])
+            else:
+                self.device.set_status(False)
+            if self.config["shutdown_on_power_off"]:
+                self._shutdown()
             self.last_status = False
         except:
             self._logger.exception(f"Failed to switch PSU Off")
