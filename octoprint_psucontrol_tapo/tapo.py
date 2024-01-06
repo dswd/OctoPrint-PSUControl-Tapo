@@ -306,6 +306,16 @@ class Switchable(Device):
     def turn_off(self):
         return self.set_status(False)
 
+    def turn_off_delayed(self, delay):
+        return self.request("add_countdown_rule", {
+				"delay": int(delay),
+				"desired_states": {
+					"on": False
+				},
+				"enable": True,
+				"remain": int(delay)
+			});
+
     def toggle(self):
         return self.set_status(not self.get_status())
 

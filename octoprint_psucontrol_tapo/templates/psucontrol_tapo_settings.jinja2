@@ -22,4 +22,15 @@
             <input type="password" class="input" data-bind="value: settings.plugins.psucontrol_tapo.password" placeholder="">
         </div>
     </div>
+    <div class="control-group">
+        <label class="control-label">Power off delay (seconds)</label>
+        <div class="controls">
+            <input type="number" class="input" data-bind="value: settings.plugins.psucontrol_tapo.power_off_delay">
+        </div>
+    </div>
+    <div class="control-group">
+        <div class="controls">
+            <label class="checkbox"><input data-bind="checked: settings.plugins.psucontrol_tapo.shutdown_on_power_off" type="checkbox"> Shutdown on power off</label>
+        </div>
+    </div>
 </form>
